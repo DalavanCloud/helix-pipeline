@@ -14,9 +14,9 @@ const plain = require('mdast-util-to-string');
 const { safeLoad } = require('js-yaml');
 
 function yaml(section) {
-  const yamls = selectAll('yaml', section); // select all YAML nodes
-  const mapped = yamls.map(({ value }) => safeLoad(value));
-  return Object.assign({ meta: Object.assign({}, ...mapped) }, section);
+  const yamls = selectAll('yaml', section);
+  section.meta = union(map(yamls, ({payload}) => payload));
+  return section;
 }
 
 function title(section) {
