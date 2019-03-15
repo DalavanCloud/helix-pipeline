@@ -94,6 +94,37 @@ class Pipeline {
     this._posts = [];
     // functions that are executed before each step
     this._taps = [];
+
+    this.attach = function (ext) {
+      if (this.sealed) {
+        return;
+      }
+      if (ext.before && typeof ext.before === 'object') {
+        console.log('attaching', ext.before);
+        Object.keys(ext.before).map(key => this.before(ext.before[key], key));
+      }
+      if (ext.after && typeof ext.after === 'object') {
+        console.log('attaching', ext.after);
+        Object.keys(ext.after).map(key => this.after(ext.after[key], key));
+      }
+      this.sealed = true;
+    };
+
+    this.attach.generic = (f, name, offset = 0) => {
+      const re = new RegExp(`^.*\\:${name} from `);
+      const foundpres = this._pres.filter(pre => pre.alias).findIndex(pre => re.test(pre.alias));
+      const foundposts = this._posts.filter(post => post.alias).findIndex(post => re.test(post.alias));
+      if (foundpres !== -1) {
+        this._pres.splice(foundpres + offset, 0, f);
+        console.log(this._pres);
+      } else if (foundposts !== -1) {
+        this._posts.splice(foundpres + offset, 0, f);
+        console.log(this._posts);
+      }
+    };
+    this.attach.before = (f, name) => this.attach.generic(f, name, 0);
+
+    this.attach.after = (f, name) => this.attach.generic(f, name, 1);
   }
 
   /**
@@ -159,6 +190,7 @@ class Pipeline {
         }
         return args[0];
       };
+      wrappedfunc.alias = lastfunc.alias;
       this._last.push(wrappedfunc);
     } else {
       throw new Error('when() needs function to operate on.');
@@ -216,13 +248,6 @@ class Pipeline {
    * @param {Function} f
    */
   describe(f) {
-    if (!this._action
-        || !this._action.logger
-        || !this._action.logger.level
-        || this._action.logger.level !== 'silly') {
-      // skip capturing the stack trace when it is mever read
-      return 'anonymous';
-    }
     if (f.alias) {
       return f.alias;
     }
@@ -250,6 +275,8 @@ class Pipeline {
    * context.
    */
   async run(context = {}) {
+    // register all custom attachers to the pipeline
+    this.attach(this._oncef);
     /**
      * Reduction function used to process the pipeline functions and merge the context parameters.
      * @param {Object} currContext Accumulated context

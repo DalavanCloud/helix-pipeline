@@ -157,8 +157,26 @@ describe('Testing HTML Pipeline', () => {
   });
 
   it('html.pipe detects ESI in response body', async () => {
+    const myfunc = ({ content }) => ({ response: { body: `${content.document.body.innerHTML}<esi:include src="foo.html">` } });
+
+    function foo(p) {
+      console.log('FOO', Object.keys(p), p);
+    }
+
+    function bar(p) {
+      console.log('BAR', Object.keys(p), p);
+    }
+
+    myfunc.before = {
+      fetch: foo,
+    };
+
+    myfunc.after = {
+      flag: bar,
+    };
+
     const result = await pipe(
-      ({ content }) => ({ response: { body: `${content.document.body.innerHTML}<esi:include src="foo.html">` } }),
+      myfunc,
       {
         content: {
           body: 'Hello World',
